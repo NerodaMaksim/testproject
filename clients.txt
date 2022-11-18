@@ -1,0 +1,41 @@
+client1 {"action":"AddItem","key":"item1","value":"value1"} 
+client1 {"action":"GetItem","key":"item1"} 
+client1 {"action":"AddItem","key":"item6","value":"10 11 12"} 
+client2 {"action":"GetAllItems"} 
+client3 {"action":"GetAllItems"} 
+client2 {"action":"AddItem","key":"item2","value":"value2"} 
+client3 {"action":"AddItem","key":"item3","value":"value5"} 
+client5 {"action":"GetAllItems"} 
+client7 {"action":"RemoveItem", "key": "item2"} 
+client1 {"action":"GetAllItems"} 
+client1 {"action":"GetAllItems"} 
+client5 {"action":"AddItem","key":"gjfdsjk32","value":"some value"} 
+client10 {"action":"GetAllItems"} 
+client7 {"action":"RemoveItem", "key": "item2"} 
+client1 {"action":"GetItem","key":"item1"} 
+client1 {"action":"AddItem","key":"item9","value":"10 11 12"} 
+client7 {"action":"RemoveItem", "key": "item9"} 
+client10 {"action":"GetAllItems"} 
+client1 {"action":"GetItem","key":"gjfdsjk32"} 
+client10 {"action":"GetAllItems"} 
+client1 {"action":"GetItem","key":"gjfdsjk32"} 
+client5 {"action":"AddItem","key":"gjfdsjk32","value":"some value"} 
+client5 {"action":"AddItem","key":"gjfdsjk32","value":"some value"} 
+client4 {"action":"AddItem","key":"gjfdsjk32","value":"some value"} 
+client7 {"action": "AddItem", "key":"eda123", "value": "1 1 12 23 1 342 53"} 
+client10 {"action":"GetAllItems"} 
+client5 {"action":"GetItem","key":"gjfdsjk32","value":"some value"} 
+client5 {"action":"GetItem","key":"gjfdsjk32","value":"some value"} 
+client5 {"action":"GetItem","key":"gjfdsjk32","value":"some value"} 
+client1 {"action":"AddItem","key":"item5","value":"value1"} 
+client1 {"action":"RemoveItem","key":"item5","value":"value1"} 
+client7 {"action": "AddItem", "key":"eda123", "value": "1 1 12 23 1 342 53"} 
+client7 {"action": "AddItem", "key":"eda123", "value": "1 1 12 23 1 342 53"} 
+client7 {"action": "AddItem", "key":"eda123", "value": "1 1 12 23 1 342 53"} 
+client7 {"action": "GetItem", "key":"eda123", "value": "1 1 12 23 1 342 53"} 
+client5 {"action":"GetItem","key":"gjfdsjk32","value":"some value"} 
+client5 {"action":"GetItem","key":"gjfdsjk32","value":"some value"} 
+client5 {"action":"GetItem","key":"gjfdsjk32","value":"some value"} 
+client10 {"action":"GetAllItems"} 
+client1 {"action":"RemoveItem","key":"item3","value":"value1"} 
+client10 {"action":"GetAllItems"} 

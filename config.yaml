@@ -1,0 +1,7 @@
+aws:
+  region: us-east-1
+  url: https://sqs.us-east-1.amazonaws.com/938636667519/TestProjectQueue.fifo
+  clientId: ${ACCESS_KEY_ID}
+  clientSecret: ${ACCESS_KEY_SECRET}
+logFile: ./logfile.log
+clientsInputPath: ./clients.txt

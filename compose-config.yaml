@@ -1,0 +1,7 @@
+aws:
+  region: ${aws_query_region}
+  url: ${aws_query_url}
+  clientId: ${ACCESS_KEY_ID}
+  clientSecret: ${ACCESS_KEY_SECRET}
+logFile: ${logfile_path}
+clientsInputPath: ${client_input_path}

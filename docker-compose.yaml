@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  testproject:
+    build: .
+    env_file:
+      - .credentials.env
+    environment:
+      - logfile_path=/logfile.log
+      - client_input_path=/clients.txt
+      - aws_query_url=https://sqs.us-east-1.amazonaws.com/938636667519/TestProjectQueue.fifo
+      - aws_query_region=us-east-1
+    volumes:
+      - ./compose-config.yaml:/config.yaml
+      - type: bind
+        source: ./logfile.log
+        target: /logfile.log
+      - type: bind
+        source: ./clients.txt
+        target: /clients.txt
+    entrypoint: testproject --config /config.yaml
