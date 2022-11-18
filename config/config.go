@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Aws              *AWSsqsConfig `yaml:"aws"`
-	LogFilePath      string        `yaml:"logFile"`
-	ClientsInputPath string        `yaml:"clientsInputPath"`
+	Aws                   *AWSsqsConfig `yaml:"aws"`
+	LogFilePath           string        `yaml:"logFile"`
+	ClientsInputPath      string        `yaml:"clientsInputPath"`
+	ServerWaitTimeSeconds int64         `yaml:"serverWaitTimeSeconds"`
 }
 
 type AWSsqsConfig struct {

@@ -9,6 +9,7 @@ services:
       - client_input_path=/clients.txt
       - aws_query_url=https://sqs.us-east-1.amazonaws.com/938636667519/TestProjectQueue.fifo
       - aws_query_region=us-east-1
+      - server_wait_time_seconds=5
     volumes:
       - ./compose-config.yaml:/config.yaml
       - type: bind

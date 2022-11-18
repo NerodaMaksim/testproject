@@ -21,6 +21,7 @@ type Server struct {
 	data     *types.OrderedMap[string, string]
 	queue    *sqs.SQS
 	queueUrl string
+	waitTime int64
 	logFile  os.File
 	ctx      context.Context
 	Cancel   context.CancelFunc
@@ -59,6 +60,7 @@ func NewServer(conf *config.Config) (*Server, error) {
 		logger:   logger,
 		dataMux:  sync.Mutex{},
 		logsMux:  sync.Mutex{},
+		waitTime: conf.ServerWaitTimeSeconds,
 	}, nil
 }
 
@@ -85,7 +87,7 @@ func (s *Server) listenMessages(messagesChan chan *sqs.Message) error {
 				},
 				QueueUrl:            &s.queueUrl,
 				MaxNumberOfMessages: aws.Int64(10),
-				WaitTimeSeconds:     aws.Int64(5),
+				WaitTimeSeconds:     aws.Int64(s.waitTime),
 			})
 			if err != nil {
 				s.logger.Error("Error while receiving messages", "error", err.Error())
