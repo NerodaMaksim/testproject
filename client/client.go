@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/google/uuid"
 )
 
 type Client struct {
@@ -39,13 +40,14 @@ func NewClient(conf *config.Config) (*Client, error) {
 }
 
 func (c *Client) SendMessage(item *types.Item) {
+	id, _ := uuid.NewRandom()
 	req, _ := json.Marshal(item)
-	_, _ = c.queue.SendMessage(&sqs.SendMessageInput{
+	c.queue.SendMessage(&sqs.SendMessageInput{
 		DelaySeconds:           aws.Int64(0),
 		MessageBody:            aws.String(string(req)),
 		QueueUrl:               &c.queueUrl,
 		MessageGroupId:         aws.String("test"),
-		MessageDeduplicationId: aws.String(createDeduplicationId(string(req))),
+		MessageDeduplicationId: aws.String(id.String()),
 	})
 }
 
@@ -83,7 +85,7 @@ type ClientUsage struct {
 	lastUsed time.Time
 }
 
-func NewCliensManaget(cfg *config.Config) (manager *ClientsManager, err error) {
+func NewClientsManager(cfg *config.Config) (manager *ClientsManager, err error) {
 	input := os.Stdin
 	if len(cfg.ClientsInputPath) != 0 {
 		input, err = os.Open(cfg.ClientsInputPath)
@@ -107,19 +109,28 @@ func (cm *ClientsManager) ListenClientActions() error {
 		fmt.Println("Write clients tasks here in format <clientId> <item>")
 	}
 
-	go setInterval(cm.removeUnusedClients, 10)
+	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		for {
+			<-ticker.C
+			cm.removeUnusedClients()
+		}
+	}()
+
+	lines, errChan := SubscribeToFileInput(cm.input)
 
 	for {
 		select {
 		case <-cm.ctx.Done():
 			return nil
-		default:
-			line, err := readLineFromFile(cm.input)
+		case line := <-lines:
+			if len(line) != 0 {
+				go cm.processClientAction(line)
+			}
+		case err := <-errChan:
 			if err != nil {
 				return err
 			}
-
-			go cm.processClientAction(line)
 		}
 	}
 }
@@ -135,15 +146,17 @@ func (cm *ClientsManager) removeUnusedClients() {
 
 }
 
-func (cm *ClientsManager) processClientAction(inputStr []string) error {
+func (cm *ClientsManager) processClientAction(inputStr string) error {
 	cm.mux.Lock()
 	defer cm.mux.Unlock()
 	if len(inputStr) <= 1 {
 		return fmt.Errorf("Wrong input string. Should be in format <clientId> <item>")
 	}
 
-	clientId := inputStr[0]
-	itemStr := strings.Join(inputStr[1:], " ")
+	splittedInput := strings.Split(inputStr, " ")
+
+	clientId := splittedInput[0]
+	itemStr := strings.Join(splittedInput[1:], " ")
 
 	var item *types.Item
 	err := json.Unmarshal([]byte(itemStr), &item)

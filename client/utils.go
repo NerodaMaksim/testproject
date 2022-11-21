@@ -1,55 +1,44 @@
 package client
 
 import (
-	"encoding/hex"
-	"fmt"
+	"bufio"
 	"io"
 	"os"
-	"strings"
 	"time"
 )
 
-func readLineFromFile(file *os.File) ([]string, error) {
-	var line []string
-	for {
-		var oneWord string
-		n, err := fmt.Fscan(file, &oneWord)
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-
-		if n != 0 {
-			line = append(line, oneWord)
-			// Item ends with }
-			if strings.Contains(oneWord, "}") {
-				// // if
-				// if len(line) == 1 {
-				// 	line = []string{}
-				// 	continue
-				// }
-				return line, nil
-			}
-		} else {
-			time.Sleep(time.Second)
-		}
-	}
-}
-
-func setInterval(function func(), intervalSec time.Duration) *time.Ticker {
-	ticker := time.NewTicker(intervalSec * time.Second)
+func SubscribeToFileInput(file *os.File) (chan string, chan error) {
+	reader := bufio.NewReader(file)
+	lines := make(chan string)
+	errChan := make(chan error)
 	go func() {
 		for {
-			<-ticker.C
-			function()
+			line := make([]byte, 0)
+			endOfLine := false
+			for !endOfLine {
+				partOfLine, isPrefix, err := reader.ReadLine()
+				if err != nil && err != io.EOF {
+					close(lines)
+					errChan <- err
+					break
+				}
+
+				endOfLine = !isPrefix
+
+				if len(partOfLine) != 0 {
+					line = append(line, partOfLine...)
+				}
+
+				if err == io.EOF {
+					time.Sleep(time.Second)
+				}
+			}
+
+			if len(line) != 0 {
+				lines <- string(line)
+			}
 		}
 	}()
-	return ticker
-}
 
-func createDeduplicationId(data string) string {
-	id := fmt.Sprintf("%d-%s", time.Now().UnixNano(), hex.EncodeToString([]byte(data)))
-	if len(id) > 128 {
-		return id[:128]
-	}
-	return id
+	return lines, errChan
 }

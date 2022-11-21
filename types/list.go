@@ -1,38 +1,55 @@
 package types
 
-type Element[K comparable, V any] struct {
-	next *Element[K, V]
-	prev *Element[K, V]
+type Element struct {
+	Key   string
+	Value string
 
-	Key   K
-	Value V
+	next *Element
+	prev *Element
 }
 
-func (e *Element[K, V]) Next() *Element[K, V] {
+func (e *Element) Next() *Element {
 	return e.next
 }
 
-func (e *Element[K, V]) Prev() *Element[K, V] {
+func (e *Element) Prev() *Element {
 	return e.prev
 }
 
-type List[K comparable, V any] struct {
-	root Element[K, V] // list head and tail
+type List struct {
+	root Element
 }
 
-func (l *List[K, V]) IsEmpty() bool {
+func (l *List) IsEmpty() bool {
 	return l.root.next == nil
 }
 
-func (l *List[K, V]) First() *Element[K, V] {
+func (l *List) First() *Element {
 	return l.root.next
 }
 
-func (l *List[K, V]) Last() *Element[K, V] {
+func (l *List) Last() *Element {
 	return l.root.prev
 }
 
-func (l *List[K, V]) Remove(e *Element[K, V]) {
+func (l *List) Push(key string, value string) *Element {
+	e := &Element{Key: key, Value: value}
+
+	if l.root.prev == nil {
+		l.root.next = e
+		l.root.prev = e
+
+		return e
+	}
+
+	e.prev = l.root.prev
+	l.root.prev.next = e
+	l.root.prev = e
+
+	return e
+}
+
+func (l *List) Remove(e *Element) {
 	if e.prev == nil {
 		l.root.next = e.next
 	} else {
@@ -47,22 +64,4 @@ func (l *List[K, V]) Remove(e *Element[K, V]) {
 
 	e.next = nil
 	e.prev = nil
-}
-
-func (l *List[K, V]) Push(key K, value V) *Element[K, V] {
-	e := &Element[K, V]{Key: key, Value: value}
-
-	if l.root.prev == nil {
-		// If first element
-		l.root.next = e
-		l.root.prev = e
-
-		return e
-	}
-
-	e.prev = l.root.prev
-	l.root.prev.next = e
-	l.root.prev = e
-
-	return e
 }

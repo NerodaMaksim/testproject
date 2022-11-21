@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sync"
 	"testproject/config"
 	"testproject/types"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -18,15 +16,15 @@ import (
 )
 
 type Server struct {
-	data     *types.OrderedMap[string, string]
+	data     *types.OrderedMap
 	queue    *sqs.SQS
 	queueUrl string
 	waitTime int64
-	logFile  os.File
+	logFile  log15.Logger
 	ctx      context.Context
 	Cancel   context.CancelFunc
 	logger   log15.Logger
-	dataMux  sync.Mutex
+	dataMux  sync.RWMutex
 	logsMux  sync.Mutex
 }
 
@@ -40,27 +38,30 @@ func NewServer(conf *config.Config) (*Server, error) {
 		return nil, fmt.Errorf("Cannot assign session with credentials\n%s", err)
 	}
 
-	logFile, err := os.OpenFile(conf.LogFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	logger := log15.New("service", "server")
+	logger.SetHandler(log15.LvlFilterHandler(log15.LvlDebug, log15.StdoutHandler))
+
+	logFile := log15.New()
+	logfileHandler, err := log15.FileHandler(conf.LogFilePath, log15.LogfmtFormat())
 	if err != nil {
 		return nil, err
 	}
 
+	logFile.SetHandler(logfileHandler)
+
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logger := log15.New("service", "server")
-	logger.SetHandler(log15.LvlFilterHandler(log15.LvlDebug, log15.StdoutHandler))
-
 	return &Server{
-		data:     types.NewOrderedMap[string, string](),
+		data:     types.NewOrderedMap(),
 		queue:    sqs.New(sess),
-		logFile:  *logFile,
 		ctx:      ctx,
 		Cancel:   cancel,
 		queueUrl: conf.Aws.QueueUrl,
 		logger:   logger,
-		dataMux:  sync.Mutex{},
+		dataMux:  sync.RWMutex{},
 		logsMux:  sync.Mutex{},
 		waitTime: conf.ServerWaitTimeSeconds,
+		logFile:  logFile,
 	}, nil
 }
 
@@ -72,12 +73,30 @@ func (s *Server) StartServer() error {
 	return err
 }
 
-func (s *Server) listenMessages(messagesChan chan *sqs.Message) error {
+func (s *Server) listenMessages(messagesChan chan *sqs.Message) {
+	receivedMessages := make(chan *sqs.ReceiveMessageOutput)
+	errChan := s.receiveMessages(receivedMessages)
 	for {
 		select {
 		case <-s.ctx.Done():
-			return nil
-		default:
+			return
+		case msgResult := <-receivedMessages:
+			if msgResult != nil {
+				for _, message := range msgResult.Messages {
+					messagesChan <- message
+				}
+			}
+		case err := <-errChan:
+			s.logger.Error("Error while receiving messages", "error", err.Error())
+		}
+	}
+}
+
+func (s *Server) receiveMessages(messages chan *sqs.ReceiveMessageOutput) chan error {
+	errChan := make(chan error)
+
+	go func() {
+		for {
 			msgResult, err := s.queue.ReceiveMessage(&sqs.ReceiveMessageInput{
 				AttributeNames: []*string{
 					aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
@@ -90,14 +109,14 @@ func (s *Server) listenMessages(messagesChan chan *sqs.Message) error {
 				WaitTimeSeconds:     aws.Int64(s.waitTime),
 			})
 			if err != nil {
-				s.logger.Error("Error while receiving messages", "error", err.Error())
-				return err
+				errChan <- err
+				continue
 			}
-			for _, message := range msgResult.Messages {
-				messagesChan <- message
-			}
+			messages <- msgResult
 		}
-	}
+	}()
+
+	return errChan
 }
 
 func (s *Server) processMessages(messagesChan chan *sqs.Message) error {
@@ -109,9 +128,9 @@ func (s *Server) processMessages(messagesChan chan *sqs.Message) error {
 			if message == nil {
 				continue
 			}
-			go func(message string) {
+			go func(messageData string) {
 				var item *types.Item
-				err := json.Unmarshal([]byte(message), &item)
+				err := json.Unmarshal([]byte(messageData), &item)
 				if err != nil {
 					s.logger.Error("Cannot unmarhsal message", "error", err.Error())
 				}
@@ -119,33 +138,35 @@ func (s *Server) processMessages(messagesChan chan *sqs.Message) error {
 					log := s.processItem(item)
 					s.logsMux.Lock()
 					defer s.logsMux.Unlock()
-					// s.logger.Info(log)
-					s.logFile.WriteString(fmt.Sprintf("%s || %s\n", time.Now().Format(time.RFC822), log))
+					s.logFile.Info(log)
+				}
+				_, err = s.queue.DeleteMessage(&sqs.DeleteMessageInput{
+					QueueUrl:      &s.queueUrl,
+					ReceiptHandle: message.ReceiptHandle,
+				})
+				if err != nil {
+					s.logger.Error("Error while deleting message", "error", err)
 				}
 			}(*message.Body)
-			_, err := s.queue.DeleteMessage(&sqs.DeleteMessageInput{
-				QueueUrl:      &s.queueUrl,
-				ReceiptHandle: message.ReceiptHandle,
-			})
-			if err != nil {
-				s.logger.Error("Error while deleting message", "error", err)
-				return err
-			}
 		}
 	}
 }
 
 func (s *Server) processItem(item *types.Item) (logMessage string) {
-	s.dataMux.Lock()
-	defer s.dataMux.Unlock()
 	switch item.Action {
 	case types.AddItem:
+		s.dataMux.Lock()
+		defer s.dataMux.Unlock()
 		ok := s.data.Set(item.Key, item.Value)
 		return fmt.Sprintf("SetItem() done. Item(key: %s, value: %s) created: %t", item.Key, item.Value, ok)
 	case types.GetItem:
+		s.dataMux.RLock()
+		defer s.dataMux.RUnlock()
 		v, _ := s.data.Get(item.Key)
 		return fmt.Sprintf("GetItem() done. Item(key: %s, value: %s)", item.Key, v)
 	case types.GetAllItems:
+		s.dataMux.RLock()
+		defer s.dataMux.RUnlock()
 		resp := ""
 		for _, key := range s.data.Keys() {
 			v, _ := s.data.Get(key)
@@ -153,6 +174,8 @@ func (s *Server) processItem(item *types.Item) (logMessage string) {
 		}
 		return fmt.Sprintf("GetAllTimes() done.%s", resp)
 	case types.RemoveItem:
+		s.dataMux.Lock()
+		defer s.dataMux.Unlock()
 		ok := s.data.Delete(item.Key)
 		return fmt.Sprintf("DeleteItem() done. Item(key: %s) deleted: %t", item.Key, ok)
 	default:

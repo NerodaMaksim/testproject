@@ -5,7 +5,6 @@ import (
 	"testproject/client"
 	"testproject/config"
 	"testproject/server"
-	"time"
 )
 
 func main() {
@@ -21,12 +20,14 @@ func main() {
 		panic(err)
 	}
 
-	StartServerAsync(cfg)
+	server, err := server.NewServer(cfg)
+	if err != nil {
+		panic(err)
+	}
 
-	// Wait server start
-	time.Sleep(time.Second)
+	go server.StartServer()
 
-	clientsManager, err := client.NewCliensManaget(cfg)
+	clientsManager, err := client.NewClientsManager(cfg)
 	if err != nil {
 		panic(err)
 	}

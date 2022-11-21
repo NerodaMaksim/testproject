@@ -6,6 +6,7 @@ require github.com/aws/aws-sdk-go v1.44.139
 
 require (
 	github.com/go-stack/stack v1.8.1 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	golang.org/x/sys v0.1.0 // indirect

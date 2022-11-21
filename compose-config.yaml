@@ -5,3 +5,4 @@ aws:
   clientSecret: ${ACCESS_KEY_SECRET}
 logFile: ${logfile_path}
 clientsInputPath: ${client_input_path}
+serverWaitTimeSeconds: ${server_wait_time_seconds}

@@ -1,18 +1,30 @@
 package types
 
-type OrderedMap[K comparable, V any] struct {
-	kv map[K]*Element[K, V]
-	ll List[K, V]
+type OrderedMap struct {
+	dict map[string]*Element
+	list List
 }
 
-func NewOrderedMap[K comparable, V any]() *OrderedMap[K, V] {
-	return &OrderedMap[K, V]{
-		kv: make(map[K]*Element[K, V]),
+func NewOrderedMap() *OrderedMap {
+	return &OrderedMap{
+		dict: make(map[string]*Element),
 	}
 }
 
-func (m *OrderedMap[K, V]) Get(key K) (value V, ok bool) {
-	v, ok := m.kv[key]
+func (m *OrderedMap) Set(key string, value string) bool {
+	_, alreadyExist := m.dict[key]
+	if alreadyExist {
+		m.dict[key].Value = value
+		return false
+	}
+
+	element := m.list.Push(key, value)
+	m.dict[key] = element
+	return true
+}
+
+func (m *OrderedMap) Get(key string) (value string, ok bool) {
+	v, ok := m.dict[key]
 	if ok {
 		value = v.Value
 	}
@@ -20,37 +32,21 @@ func (m *OrderedMap[K, V]) Get(key K) (value V, ok bool) {
 	return
 }
 
-func (m *OrderedMap[K, V]) Set(key K, value V) bool {
-	_, alreadyExist := m.kv[key]
-	if alreadyExist {
-		m.kv[key].Value = value
-		return false
+func (m *OrderedMap) Delete(key string) (didDelete bool) {
+	element, ok := m.dict[key]
+	if ok {
+		m.list.Remove(element)
+		delete(m.dict, key)
 	}
 
-	element := m.ll.Push(key, value)
-	m.kv[key] = element
-	return true
+	return ok
 }
 
-func (m *OrderedMap[K, V]) Len() int {
-	return len(m.kv)
-}
-
-func (m *OrderedMap[K, V]) Keys() (keys []K) {
-	keys = make([]K, 0, m.Len())
-	for el := m.ll.First(); el != nil; el = el.Next() {
+func (m *OrderedMap) Keys() (keys []string) {
+	keys = make([]string, 0, len(m.dict))
+	for el := m.list.First(); el != nil; el = el.Next() {
 		keys = append(keys, el.Key)
 	}
 
 	return
-}
-
-func (m *OrderedMap[K, V]) Delete(key K) (didDelete bool) {
-	element, ok := m.kv[key]
-	if ok {
-		m.ll.Remove(element)
-		delete(m.kv, key)
-	}
-
-	return ok
 }
